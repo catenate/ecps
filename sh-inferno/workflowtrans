@@ -10,11 +10,33 @@ if {no $workflow} {
 ifs = '
 '; apply {
 	state = $1
-	echo $state
+	subproject = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//response/stateDefinition/subproject/text()' >[2]/dev/null}
+	subprocedure = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//response/stateDefinition/subprocedure/text()' >[2]/dev/null}
+	subworkflowDefinition = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//response/stateDefinition/subworkflowDefinition/text()' >[2]/dev/null}
+
+	if {! no $subprocedure} {
+		if {no $subproject} {
+			echo $state '('^$"subprocedure^')'
+		} {
+			echo $state '('^$"subproject^':'^$"subprocedure^')'
+		}
+	} {
+		if {! no $subworkflowDefinition} {
+			if {no $subproject} {
+				echo $state '['^$"subworkflowDefinition^']'
+			} {
+				echo $state '['^$"subproject^':'^$"subworkflowDefinition^']'
+			}
+		} {
+			echo $state
+		}
+	}
+
 	ifs = '
 '
 	transitions = `{ifs = '
-'; ectool getTransitionDefinitions $"project $"workflow $state | os xpath -q -e '//response/transitionDefinition/transitionDefinitionName/text()' >[2]/dev/null}
+'; ectool getTransitionDefinitions $"project $"workflow $"state | os xpath -q -e '//response/transitionDefinition/transitionDefinitionName/text()' >[2]/dev/null}
+
 	apply {
 		transition = $1
 		target = `{ectool getProperty '/projects['^$project^']/workflowDefinitions['^$workflow^']/stateDefinitions['^$state^']/transitionDefinitions['^$transition^']/targetState'}

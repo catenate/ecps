@@ -1,7 +1,7 @@
 Dump /git/ecps/dump
 ls|mc
-osd git add bash sh-inferno
-osd git commit -a -m 'keep around xpath=$HOME/bin/xpath but don''t use it'
+osd git add sh-inferno/ectool
+osd git commit -a -m 'move ectool to sh-inferno; decorate states with [subworkflows] and (project:subprocedures)'
 osd git diff
 osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all

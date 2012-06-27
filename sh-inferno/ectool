@@ -1,0 +1,19 @@
+#!/dis/sh
+load std
+ectool = /opt/electriccloud/electriccommander/bin/ectool
+
+if {~ $1 '--help'} {
+	os -d`{hp `{pwd}} $ectool --server `{cat server} --help
+	exit
+}
+
+if {~ $#* 1} {
+	grep $* ectool.log
+	exit
+} {
+	os -d`{hp `{pwd}} $ectool --server `{cat server} $*
+}
+
+apply {echo ''''^$1^''''} $* | sed '/^''[-0-9A-Z_a-z\/\.]+''$/{;s,^'',,;s,''$,,;}' | fmt -w 1000 | sed 's,^,ectool ,' >> ectool.log
+sort ectool.log | uniq > ectool.log.tmp
+mv ectool.log.tmp ectool.log
