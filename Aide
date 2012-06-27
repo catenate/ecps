@@ -1,8 +1,8 @@
 Dump /git/ecps/dump
 ls|mc
 osd git add Aide README dump
-osd git commit -a -m 'diff and log in Aide'
-osd git diff 4b10ea0
+osd git commit -a -m 'diff previous push in Aide'
+osd git diff 98d0eaf
 osd git log --decorate --graph --oneline --all
 osd git push origin master
 osd git status
