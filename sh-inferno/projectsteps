@@ -9,7 +9,7 @@ ifs = '
 	ifs = '
 '
 	steps = `{ifs = '
-'; ectool getSteps $"project $procedure | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null}
+'; ectool getSteps $"project $"procedure | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null}
 
 	apply {
 		step = $1

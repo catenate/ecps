@@ -1,7 +1,7 @@
 Dump /git/ecps/dump
 ls|mc
 osd git add sh-inferno/ectool
-osd git commit -a -m 'Decorate steps with subprocedure names.'
+osd git commit -a -m 'Procedure name might have spaces.'
 osd git diff
 osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all
