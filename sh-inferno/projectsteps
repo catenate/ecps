@@ -1,5 +1,31 @@
 #!/dis/sh
 project = $1
+
 ifs = '
-'; apply {echo $1; ectool getSteps $"project $1 | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null | sed 's,^,	,'} `{ifs = ' 	
+'; apply {
+	procedure = $1
+	echo $procedure
+
+	ifs = '
+'
+	steps = `{ifs = '
+'; ectool getSteps $"project $procedure | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null}
+
+	apply {
+		step = $1
+		subproject = `{ectool getStep $"project $"procedure $"step | os xpath -q -e '//response/step/subproject/text()' >[2]/dev/null}
+		subprocedure = `{ectool getStep $"project $"procedure $"step | os xpath -q -e '//response/step/subprocedure/text()' >[2]/dev/null}
+	
+		if {no $subprocedure} {
+			echo '	'^$"step
+		} {
+			if {no $subproject} {
+				echo '	'^$"step '('^$"subprocedure^')'
+			} {
+				echo '	'^$"step '('^$"subproject^':'^$"subprocedure^')'
+			}
+		}
+	} $steps
+
+} `{ifs = ' 	
 '; ectool getProcedures $"project | os xpath -q -e '//response/procedure/procedureName/text()'}
