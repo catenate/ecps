@@ -1,8 +1,9 @@
 Dump /git/ecps/dump
 ls|mc
 osd git add bash sh-inferno
-osd git commit -a -m 'add commands to list a project''s steps (and path to step''s command), and a workflow''s states and transitions'
-osd git diff 98d0eaf
+osd git commit -a -m 'keep around xpath=$HOME/bin/xpath but don''t use it'
+osd git diff
+osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all
 osd git push origin master
 osd git status
