@@ -1,7 +1,7 @@
-ectool logs given ectool command lines for later reuse.
+ectool logs given ectool command lines for reference and reuse.
 
-projectcommands lists the property path to each command in steps of
-the given project.  The command may not exist, since it does not yet check.
+projectcommands lists the property path to each command in steps of the
+given project.  The command may not exist, since it does not yet check.
 
 projectsteps lists steps for each procedure of the given project.
 
