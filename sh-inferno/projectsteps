@@ -1,0 +1,5 @@
+#!/dis/sh
+project = $1
+ifs = '
+'; apply {echo $1; ectool getSteps $"project $1 | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null | sed 's,^,	,'} `{ifs = ' 	
+'; ectool getProcedures $"project | os xpath -q -e '//response/procedure/procedureName/text()'}

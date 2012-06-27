@@ -1,0 +1,32 @@
+#!/bin/bash
+
+export PATH="$PATH:/opt/electriccloud/electriccommander/bin"
+name=$(basename $0)
+xpath=$HOME/bin/xpath
+project="$1"
+oldIFS=$IFS
+
+if [ -n "$project" ]
+then
+    echo $project
+    tmp=$(mktemp /tmp/${name}-XXXXX)
+    ectool getProcedures "$project" | xpath -q -e '//response/procedure/procedureName/text()' | while read proc
+    do
+        ectool getSteps "$project" "$proc" > $tmp 
+        if [ -s $tmp ]
+        then
+            xpath -q -e '//response/step/stepName/text()' $tmp | while read sn
+            do
+                echo  "  $sn /projects[$project]/procedures[$proc]/steps[$sn]/command"
+            done
+        fi
+    done
+else
+    ectool getProjects | xpath -q -e //response/project/projectName/text'()' 
+fi
+
+# #!/dis/sh
+# project = $1
+# ifs = '
+# '; apply {echo $1; ectool getSteps $"project $1 | os xpath -q -e '//response/step/stepName/text()' | sed 's,^,  ,'} `{ifs = ' 
+# '; ectool getProcedures $"project | os xpath -q -e '//response/procedure/procedureName/text()'}
