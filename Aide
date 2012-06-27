@@ -1,8 +1,9 @@
 Dump /git/ecps/dump
 ls|mc
 osd git add Aide README dump
-osd git commit -a -m 'add Aide, dump, description in README'
-osd git remote add origin git@github.com:catenate/ecps.git
-osd git push -u origin master
+osd git commit -a -m 'diff and log in Aide'
+osd git diff 4b10ea0
+osd git log --decorate --graph --oneline --all
+osd git push origin master
 osd git status
 |sort|uniq
