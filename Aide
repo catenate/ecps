@@ -1,0 +1,8 @@
+Dump /git/ecps/dump
+ls|mc
+osd git add Aide README dump
+osd git commit -a -m 'add Aide, dump, description in README'
+osd git remote add origin git@github.com:catenate/ecps.git
+osd git push -u origin master
+osd git status
+|sort|uniq
