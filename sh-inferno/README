@@ -1,12 +1,13 @@
 ectool logs given ectool command lines for reference and reuse.
 
-projectcommands lists the property path to each command in steps of the
-given project.  The command may not exist, since it does not yet check.
+projectcommands lists the property path to each command in steps
+of the given project.  The command may not exist, since it does not
+yet check.
 
 projectsteps lists steps for each procedure of the given project.
 
-redirect searches for /git/*/sh-inferno scripts and runs them, since
-Inferno has no $PATH.
+redirect searches for /git/*/sh-inferno scripts and runs them,
+since Inferno has no $PATH.
 
 workflowtrans lists states and transitions of the given project's
 given workflow.  It decorates transitions with the target state,
