@@ -1,5 +1,11 @@
 #!/dis/sh
 project = $1
+
+if {no $project} {
+	echo 'usage: projectcommands $"project'
+	exit 1
+}
+
 ifs = '
-'; apply {ectool getSteps $"project $1 | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null | sed 's,(.*),/projects['^$project^']/procedures['^$1^']/steps[\1]/command,'} `{ifs = ' 	
+'; apply {ectool getSteps $"project $"1 | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null | sed 's,(.*),/projects['^$project^']/procedures['^$1^']/steps[\1]/command,'} `{ifs = ' 	
 '; ectool getProcedures $"project | os xpath -q -e '//response/procedure/procedureName/text()'}

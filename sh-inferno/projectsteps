@@ -1,6 +1,11 @@
 #!/dis/sh
 project = $1
 
+if {no $project} {
+	echo 'usage: projectsteps $"project'
+	exit 1
+}
+
 ifs = '
 '; apply {
 	procedure = $1

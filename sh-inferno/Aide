@@ -1,0 +1,4 @@
+projectcommands
+projectsteps
+workflowtrans
+|sort|uniq

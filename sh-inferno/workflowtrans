@@ -2,6 +2,12 @@
 project = $1
 workflow = $2
 
+if {no $project} {
+	echo 'usage: workflowtrans $"project ($"workflow)?
+	Without $workflow, list all workflows in $project.'
+	exit 1
+}
+
 if {no $workflow} {
 	ectool getWorkflowDefinitions $"project | os xpath -q -e '//response/workflowDefinition/workflowDefinitionName/text()' >[2]/dev/null
 	exit 0
