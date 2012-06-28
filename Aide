@@ -1,10 +1,11 @@
 Dump /git/ecps/dump
 ls|mc
 osd git add bash/README
-osd git commit -a -m 'Use functions and subfunctions instead of embedding apply.'
+osd git commit -a -m 'Add pull --rebase command.'
 osd git diff
 osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all
+osd git pull --rebase
 osd git push origin master
 osd git status
 |sort|uniq
