@@ -13,12 +13,32 @@ if {no $workflow} {
 	exit 0
 }
 
-ifs = '
-'; apply {
-	state = $1
-	subproject = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//subproject/text()' >[2]/dev/null}
-	subprocedure = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//subprocedure/text()' >[2]/dev/null}
-	subworkflowDefinition = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//subworkflowDefinition/text()' >[2]/dev/null}
+fn transitionlines {
+	proj = $1
+	flow = $2
+	state = $3
+	trans = $4
+
+	target = `{ectool getProperty '/projects['^$proj^']/workflowDefinitions['^$flow^']/stateDefinitions['^$state^']/transitionDefinitions['^$trans^']/targetState'}
+	echo $trans '→' $target | sed 's,^,	,'
+}
+
+subfn statetransitions {
+	proj = $1
+	flow = $2
+	state = $3
+
+	result = `{ectool getTransitionDefinitions $"proj $"flow $"state | os xpath -q -e '//transitionDefinitionName/text()' >[2]/dev/null}
+}
+
+fn procedureline {
+	proj = $1
+	flow = $2
+	state = $3
+
+	subproject = `{ectool getStateDefinition $"proj $"flow $"state | os xpath -q -e '//subproject/text()' >[2]/dev/null}
+	subprocedure = `{ectool getStateDefinition $"proj $"flow $"state | os xpath -q -e '//subprocedure/text()' >[2]/dev/null}
+	subworkflowDefinition = `{ectool getStateDefinition $"proj $"flow $"state | os xpath -q -e '//subworkflowDefinition/text()' >[2]/dev/null}
 
 	if {! no $subprocedure} {
 		if {no $subproject} {
@@ -37,17 +57,23 @@ ifs = '
 			echo $state
 		}
 	}
+}
 
-	ifs = '
-'
-	transitions = `{ifs = '
-'; ectool getTransitionDefinitions $"project $"workflow $"state | os xpath -q -e '//transitionDefinitionName/text()' >[2]/dev/null}
+fn statelines {
+	proj = $1
+	flow = $2
+	state = $3
 
-	apply {
-		transition = $1
-		target = `{ectool getProperty '/projects['^$project^']/workflowDefinitions['^$workflow^']/stateDefinitions['^$state^']/transitionDefinitions['^$transition^']/targetState'}
-		echo $transition '→' $target | sed 's,^,	,'
-	} $transitions
-} `{ifs = ' 	
-'; ectool getStateDefinitions $"project $"workflow | os xpath -q -e '//stateDefinitionName/text()'}
-exit 0
+	procedureline $"proj $"flow $"state
+	apply {transitionlines $"proj $"flow $"state $"1} ${statetransitions $"proj $"flow $"state}
+}
+
+subfn workflowstates {
+	proj = $1
+	flow = $2
+
+	result = `{ectool getStateDefinitions $"proj $"flow | os xpath -q -e '//stateDefinitionName/text()'}
+}
+
+ifs = '
+'; apply {statelines $"project $"workflow $"1} ${workflowstates $"project $"workflow}

@@ -6,6 +6,18 @@ if {no $project} {
 	exit 1
 }
 
+fn procedurepaths {
+	proj = $1
+	proc = $2
+
+	ectool getSteps $"proj $"proc | os xpath -q -e '//stepName/text()' >[2]/dev/null | sed 's,(.*),/projects['^$proj^']/procedures['^$proc^']/steps[\1]/command,'
+}
+
+subfn projectprocedures {
+	proj = $1
+
+	result = `{ectool getProcedures $"proj | os xpath -q -e '//procedureName/text()'}
+}
+
 ifs = '
-'; apply {ectool getSteps $"project $"1 | os xpath -q -e '//stepName/text()' >[2]/dev/null | sed 's,(.*),/projects['^$project^']/procedures['^$1^']/steps[\1]/command,'} `{ifs = ' 	
-'; ectool getProcedures $"project | os xpath -q -e '//procedureName/text()'}
+'; apply {procedurepaths $"project $"1} ${projectprocedures $"project}

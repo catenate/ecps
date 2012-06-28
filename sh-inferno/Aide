@@ -1,4 +1,2 @@
-projectcommands
-projectsteps
-workflowtrans
+ls|mc
 |sort|uniq

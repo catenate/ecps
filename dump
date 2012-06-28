@@ -1,10 +1,8 @@
 /git
 /fonts/vera/Vera/9x15.14.font
 /fonts/lucidasans/unicode.6.font
-          0          25          69
+          0          24          67
 f          0           1           0          19           1 
-          1          37         246           0           0 /git/ecps/Aide Del Snarf Undo | Look 
-f          1          19          80          80           1 
-         19          39          80           0           0 /git/ecps/README Del Snarf Undo | Look 
-f          1          26          64          64           5 
-         26          54         649           0           0 /git/ecps/sh-inferno/README Del Snarf Undo | Look |fmt
+          1          37         266           0           0 /git/ecps/Aide Del Snarf Undo | Look 
+f          0          14           6           6          22 
+         14          48          17           0           0 /git/ecps/sh-inferno/Aide Del Snarf Undo | Look 

@@ -1,7 +1,7 @@
 Dump /git/ecps/dump
 ls|mc
 osd git add bash/README
-osd git commit -a -m 'Cache step xml.'
+osd git commit -a -m 'Use functions and subfunctions instead of embedding apply.'
 osd git diff
 osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all

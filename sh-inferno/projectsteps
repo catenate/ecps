@@ -6,35 +6,48 @@ if {no $project} {
 	exit 1
 }
 
-ifs = '
-'; apply {
-	procedure = $1
-	echo $procedure
+fn stepline {
+	proj = $1
+	proc = $2
+	step = $3
 
-	ifs = '
-'
-	steps = `{ifs = '
-'; ectool getSteps $"project $"procedure | os xpath -q -e '//stepName/text()' >[2]/dev/null}
+	tmp = /tmp/projectsteps.${pid}
+	ectool getStep $"proj $"proc $"step > $tmp
+	subproj = `{cat $tmp | os xpath -q -e '//subproject/text()' >[2]/dev/null}
+	subproc = `{cat $tmp | os xpath -q -e '//subprocedure/text()' >[2]/dev/null}
+	rm $tmp
 
-	apply {
-		step = $1
-
-		tmp = /tmp/projectsteps.${pid}
-		ectool getStep $"project $"procedure $"step > $tmp
-		subproject = `{cat $tmp | os xpath -q -e '//subproject/text()' >[2]/dev/null}
-		subprocedure = `{cat $tmp | os xpath -q -e '//subprocedure/text()' >[2]/dev/null}
-		rm $tmp
-	
-		if {no $subprocedure} {
-			echo '	'^$"step
+	if {no $subproc} {
+		echo '	'^$"step
+	} {
+		if {no $subproj} {
+			echo '	'^$"step '('^$"subproc^')'
 		} {
-			if {no $subproject} {
-				echo '	'^$"step '('^$"subprocedure^')'
-			} {
-				echo '	'^$"step '('^$"subproject^':'^$"subprocedure^')'
-			}
+			echo '	'^$"step '('^$"subproj^':'^$"subproc^')'
 		}
-	} $steps
+	}
+}
 
-} `{ifs = ' 	
-'; ectool getProcedures $"project | os xpath -q -e '//procedureName/text()'}
+subfn proceduresteps {
+	proj = $1
+	proc = $2
+
+	result = `{ectool getSteps $"proj $"proc | os xpath -q -e '//stepName/text()' >[2]/dev/null}
+}
+
+fn proceduresteps {
+	proj = $1
+	proc = $2
+
+	echo $proc
+	apply {stepline $"proj $"proc $"1} ${proceduresteps $"proj $"proc}
+}
+
+subfn projectprocedures {
+	proj = $1
+
+	result = `{ectool getProcedures $"proj | os xpath -q -e '//procedureName/text()'}
+}
+
+ifs = '
+'; apply {proceduresteps $"project $"1} ${projectprocedures $"project}
