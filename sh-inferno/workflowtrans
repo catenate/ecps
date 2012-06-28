@@ -9,16 +9,16 @@ if {no $project} {
 }
 
 if {no $workflow} {
-	ectool getWorkflowDefinitions $"project | os xpath -q -e '//response/workflowDefinition/workflowDefinitionName/text()' >[2]/dev/null
+	ectool getWorkflowDefinitions $"project | os xpath -q -e '//workflowDefinitionName/text()' >[2]/dev/null
 	exit 0
 }
 
 ifs = '
 '; apply {
 	state = $1
-	subproject = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//response/stateDefinition/subproject/text()' >[2]/dev/null}
-	subprocedure = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//response/stateDefinition/subprocedure/text()' >[2]/dev/null}
-	subworkflowDefinition = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//response/stateDefinition/subworkflowDefinition/text()' >[2]/dev/null}
+	subproject = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//subproject/text()' >[2]/dev/null}
+	subprocedure = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//subprocedure/text()' >[2]/dev/null}
+	subworkflowDefinition = `{ectool getStateDefinition $"project $"workflow $"state | os xpath -q -e '//subworkflowDefinition/text()' >[2]/dev/null}
 
 	if {! no $subprocedure} {
 		if {no $subproject} {
@@ -41,7 +41,7 @@ ifs = '
 	ifs = '
 '
 	transitions = `{ifs = '
-'; ectool getTransitionDefinitions $"project $"workflow $"state | os xpath -q -e '//response/transitionDefinition/transitionDefinitionName/text()' >[2]/dev/null}
+'; ectool getTransitionDefinitions $"project $"workflow $"state | os xpath -q -e '//transitionDefinitionName/text()' >[2]/dev/null}
 
 	apply {
 		transition = $1
@@ -49,5 +49,5 @@ ifs = '
 		echo $transition '→' $target | sed 's,^,	,'
 	} $transitions
 } `{ifs = ' 	
-'; ectool getStateDefinitions $"project $"workflow | os xpath -q -e '//response/stateDefinition/stateDefinitionName/text()'}
+'; ectool getStateDefinitions $"project $"workflow | os xpath -q -e '//stateDefinitionName/text()'}
 exit 0

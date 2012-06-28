@@ -14,12 +14,16 @@ ifs = '
 	ifs = '
 '
 	steps = `{ifs = '
-'; ectool getSteps $"project $"procedure | os xpath -q -e '//response/step/stepName/text()' >[2]/dev/null}
+'; ectool getSteps $"project $"procedure | os xpath -q -e '//stepName/text()' >[2]/dev/null}
 
 	apply {
 		step = $1
-		subproject = `{ectool getStep $"project $"procedure $"step | os xpath -q -e '//response/step/subproject/text()' >[2]/dev/null}
-		subprocedure = `{ectool getStep $"project $"procedure $"step | os xpath -q -e '//response/step/subprocedure/text()' >[2]/dev/null}
+
+		tmp = /tmp/projectsteps.${pid}
+		ectool getStep $"project $"procedure $"step > $tmp
+		subproject = `{cat $tmp | os xpath -q -e '//subproject/text()' >[2]/dev/null}
+		subprocedure = `{cat $tmp | os xpath -q -e '//subprocedure/text()' >[2]/dev/null}
+		rm $tmp
 	
 		if {no $subprocedure} {
 			echo '	'^$"step
@@ -33,4 +37,4 @@ ifs = '
 	} $steps
 
 } `{ifs = ' 	
-'; ectool getProcedures $"project | os xpath -q -e '//response/procedure/procedureName/text()'}
+'; ectool getProcedures $"project | os xpath -q -e '//procedureName/text()'}
