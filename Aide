@@ -1,7 +1,7 @@
 Dump /git/ecps/dump
 ls|mc
-osd git add sh-inferno/Aide
-osd git commit -a -m 'Print usage if no project given.'
+osd git add bash/README
+osd git commit -a -m 'Describe bash scripts.'
 osd git diff
 osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all

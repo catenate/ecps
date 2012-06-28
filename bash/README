@@ -1,0 +1,6 @@
+projectstepscommand lists steps for each procedure of the given
+project, decorated with the property path to each step's command.
+The command may not exist, since it does not yet check.
+
+workflowtrans lists states and transitions of the given project's
+given workflow.  It decorates transitions with the target state.
