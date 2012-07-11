@@ -15,7 +15,7 @@ use Getopt::Long;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.3b';
+$::version = '0.3c';
 $::debug = 0;
 $| = 1;
 
@@ -290,7 +290,9 @@ foreach my $o ($objectNodeSet->get_nodelist()) {
 
     foreach my $a (@actionDeleteP) {
 	print "deleteProperty '$a' --objectId '$objectId'\n" if ($::debug);
+	$ec->abortOnError(0);
 	$ec->deleteProperty($a, {'objectId' => $objectId}) unless ($::debug);
+	$ec->abortOnError(1);
     }
 
 }
@@ -457,7 +459,7 @@ sub syntaxError {
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 sub printHelp {
     my $helptext = <<END_OF_TEXT;
-Usage: $0 [--server <host>] [--user <username>] [--pw <password>]
+Usage: ecfind [--server <host>] [--user <username>] [--pw <password>]
   general:
    --object <commander-object-type-name>
    [--query <query-expression> | @<property-path> | -]
@@ -586,14 +588,14 @@ the command line.
 
 When the script or program executes, it can find selected bits of information
 about the object in the environment variables.  Each object will at least
-have the "ECFIND_ojectId" variable set to the object ID that was returned by
+have the "ECFIND_objectId" variable set to the object ID that was returned by
 the query.  Depending on the object type, additional "ECFIND_" variables may
 be set.  More specifically, all intrinsics where the name ends in "Name" or
 "Id", or where the name contains the string "container" will be placed into
 the environment.  This should be sufficient for the executed script to
 uniquely identify the object without needing to use the object ID.  For
-example, a query for step objects will result in at least the following
-environment variables being set to valid values:
+example, a query for procedureStep objects will result in at least the
+following environment variables being set to valid values:
 
   ECFIND_objectId
   ECFIND_projectName
@@ -611,16 +613,15 @@ operations can be specified:
 The "--setProperty" action permits one to set one or more properties on
 each object found to a specific value.  As usual with setProperty operations,
 if the property does not exist, it will be created.  Note that the property
-in question can be an intrinsic, as well as a custom. It does not necessarily
-have to be at the top level of the object either.  (In fact, it does not have
-to be on the property at all.)
+in question can be a either an intrinsic property or a custom property.
 
  --deleteProperty <property>...
 
 If one can create properties, it stands to reason that one should be easily
 able to remove properties.  The "--deleteProperty" action allows one to
 delete custom properties.  It is not an error to attempt to delete a property
-that does not exist.
+that does not exist, but you cannot delete an intrinsic property (use the
+setProperty action to set the intrinsic's value to the empty string instead).
 
  --editProperty <property>=~s/<old>/<new>/[g]...
 
@@ -635,27 +636,27 @@ Examples:
 
 The following simple query prints a list of all of the projects:
 
-$0 --object project
+ecfind --object project
 
 The same, but this time print the project names:
 
-$0 --object project --print name
+ecfind --object project --print name
 
 It might be nice to sort it, and make sure we print a LOT of them:
 
-$0 --object project --sort projectName --maxId 1000000 --print name
+ecfind --object project --sort projectName --maxId 1000000 --print name
 
 Limit the query to projects names that contain the string "EC":
 
-$0 --object project --query "contains('projectName','EC')" --print name
+ecfind --object project --query "contains('projectName','EC')" --print name
 
 A more complicated query, that prints the names of projects where the name
 contains the string "EC", and either the custom property "ec_visibility" does
 not exist or has the value "all", and is not a plugin (i.e. the intrinsic
-property "pluginName" does not exist.. Use the maxId option to make sure we
+property "pluginName" does not exist). Use the maxId option to make sure we
 search all projects, and sort the names. Line wrapping is for legibility:
 
-$0 --object property --maxId 1000000 --query
+ecfind --object property --maxId 1000000 --query
  "and(contains('projectName','EC'), 
       or(isNull('ec_visibility'),equals('ec_visibility','all'))
       isNull('pluginName'))" --sort projectName --print name
@@ -663,17 +664,17 @@ $0 --object property --maxId 1000000 --query
 Find all projects that contain the string "EC" in the name, and print
 out the full ElectricCommander path to the project:
 
-$0 --object project --query "contains('projectName','example')"
+ecfind --object project --query "contains('projectName','example')"
   --exec "echo /projects/\%ECFIND_projectName%"
 
 Finally, the following example is a query that finds all steps in any project
-that end in the string "lib", where the command block (an intrinsic property)
+that ends in the string "lib", where the command block (an intrinsic property)
 contains the string "workdir".  For each step that matches, print the unique
 object id of the step, and then change the string "workdir" in the command
 block to "working_directory", and append a string (an arbitrary log message)
 to the custom property named "Log" on the step:
 
-$0 --object procedureStep --query
+ecfind --object procedureStep --query
  "and(like('projectName','\%lib'), contains('command','workdir'))"
  --print id
  --editProperty "command=~s/workdir/working_directory/g"

@@ -127,14 +127,14 @@ the command line.
 
 When the script or program executes, it can find selected bits of information
 about the object in the environment variables.  Each object will at least
-have the "ECFIND_ojectId" variable set to the object ID that was returned by
+have the "ECFIND_objectId" variable set to the object ID that was returned by
 the query.  Depending on the object type, additional "ECFIND_" variables may
 be set.  More specifically, all intrinsics where the name ends in "Name" or
 "Id", or where the name contains the string "container" will be placed into
 the environment.  This should be sufficient for the executed script to
 uniquely identify the object without needing to use the object ID.  For
-example, a query for step objects will result in at least the following
-environment variables being set to valid values:
+example, a query for procedureStep objects will result in at least the
+following environment variables being set to valid values:
 
   ECFIND_objectId
   ECFIND_projectName
@@ -152,16 +152,15 @@ operations can be specified:
 The "--setProperty" action permits one to set one or more properties on
 each object found to a specific value.  As usual with setProperty operations,
 if the property does not exist, it will be created.  Note that the property
-in question can be an intrinsic, as well as a custom. It does not necessarily
-have to be at the top level of the object either.  (In fact, it does not have
-to be on the property at all.)
+in question can be a either an intrinsic property or a custom property.
 
  --deleteProperty <property>...
 
 If one can create properties, it stands to reason that one should be easily
 able to remove properties.  The "--deleteProperty" action allows one to
 delete custom properties.  It is not an error to attempt to delete a property
-that does not exist.
+that does not exist, but you cannot delete an intrinsic property (use the
+setProperty action to set the intrinsic's value to the empty string instead).
 
  --editProperty <property>=~s/<old>/<new>/[g]...
 
@@ -193,7 +192,7 @@ ecfind --object project --query "contains('projectName','EC')" --print name
 A more complicated query, that prints the names of projects where the name
 contains the string "EC", and either the custom property "ec_visibility" does
 not exist or has the value "all", and is not a plugin (i.e. the intrinsic
-property "pluginName" does not exist.. Use the maxId option to make sure we
+property "pluginName" does not exist). Use the maxId option to make sure we
 search all projects, and sort the names. Line wrapping is for legibility:
 
 ecfind --object property --maxId 1000000 --query
@@ -208,7 +207,7 @@ ecfind --object project --query "contains('projectName','example')"
   --exec "echo /projects/%ECFIND_projectName%"
 
 Finally, the following example is a query that finds all steps in any project
-that end in the string "lib", where the command block (an intrinsic property)
+that ends in the string "lib", where the command block (an intrinsic property)
 contains the string "workdir".  For each step that matches, print the unique
 object id of the step, and then change the string "workdir" in the command
 block to "working_directory", and append a string (an arbitrary log message)
@@ -220,4 +219,4 @@ ecfind --object procedureStep --query
  --editProperty "command=~s/workdir/working_directory/g"
  --editProperty "Log=~s/$/Bulk update for directory name change - MJW\n/"
 
-(version 0.3a)
+(version 0.3c)
