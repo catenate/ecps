@@ -1,7 +1,7 @@
 Dump /git/ecps/dump
-ls|mc
-osd git add perl
-osd git commit -a -m 'Add MW''s ecfind.pl utility.'
+ls -F|mc
+osd git add perl/README
+osd git commit -a -m 'Describe ecfind in perl README.'
 osd git diff
 osd git diff 91a99a9
 osd git log --decorate --graph --oneline --all

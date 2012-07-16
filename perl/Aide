@@ -1,2 +1,2 @@
-ls|mc
+ls -F|mc
 |sort|uniq
