@@ -15,7 +15,7 @@ use Getopt::Long;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.3c';
+$::version = '0.3d';
 $::debug   = 0;
 $|         = 1;
 
@@ -52,7 +52,7 @@ my $result = GetOptions(
     "sort=s"           => \@sorts,
     "maxIds=i"         => \$maxIds,
     "fail-if=s"        => \$actionFail,
-    "print=s"          => \$actionPrint,
+    "print:s"          => \$actionPrint,
     "setProperty=s"    => \@actionSetP,
     "editProperty=s"   => \@actionEditP,
     "deleteProperty=s" => \@actionDeleteP,
