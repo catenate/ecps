@@ -8,8 +8,10 @@ Usage: ecfind [--server <host>] [--user <username>] [--pw <password>]
   actions:
    [--print id | xml | name | count]
    [--fail-if none | any]
+   [--expandString <string>]...
    [--exec <command-or-script>]...
    [--setProperty <property>=<value>]...
+   [--copyProperty <target>=<original>]...
    [--editProperty <property>=~s/<old>/<new>/[g]]...
    [--deleteProperty <property>]...
   debugging: [--debug]
@@ -117,6 +119,19 @@ The "--fail-if" option can be combined with other actions as required, although
 doing so may make it difficult for the calling script to know the exact reason
 for a failure exit code.
 
+ --expandString <string>...
+
+When it is desirable to have a little more control over the output, in some
+cases the "--expandString" option may be useful.  The provided string is sent
+to the "expandString" API in order to have all the embedded property
+references (e.g. '$[description]') expanded prior to being displayed.  Note
+that this option is often of limited use, since it attempts to expand nested
+property references, which may not be valid outside of the job execution
+context.  Clever use of embedded javascript references can mitigate this to
+some extent, but in general this option should be used very carefully and only
+when the content of the properties in question is well-understood and is
+defined and valid outside of the job execution context.
+
  --exec <command-or-script>...
 
 If one needs to perform more interesting work with each object that the query
@@ -153,6 +168,14 @@ The "--setProperty" action permits one to set one or more properties on
 each object found to a specific value.  As usual with setProperty operations,
 if the property does not exist, it will be created.  Note that the property
 in question can be a either an intrinsic property or a custom property.
+
+ --copyProperty <target>=<original>...
+
+The "--copyProperty" action permits one to copy the value of an existing
+property to a target property.  If the target property exists, its value
+will be replaced.  Only the value is copied (the description field is
+ignored).  Note that the properties involved can be either intrinsic or
+custom properties.
 
  --deleteProperty <property>...
 
@@ -207,16 +230,20 @@ ecfind --object project --query "contains('projectName','example')"
   --exec "echo /projects/%ECFIND_projectName%"
 
 Finally, the following example is a query that finds all steps in any project
-that ends in the string "lib", where the command block (an intrinsic property)
-contains the string "workdir".  For each step that matches, print the unique
-object id of the step, and then change the string "workdir" in the command
-block to "working_directory", and append a string (an arbitrary log message)
-to the custom property named "Log" on the step:
+who's name ends in the string "lib" and where the command block (an intrinsic
+property) contains the string "workdir".  For each step found, it will print
+the unique object id of the step followed by the Commander path to the step
+in question, make a backup copy of the command block, change the string
+"workdir" in the command block to "working_directory", and finally write a
+log message to the front of a custom property named "changeLog" on the step:
 
 ecfind --object procedureStep --query
  "and(like('projectName','%lib'), contains('command','workdir'))"
  --print id
+ --expandString
+  "/projects/$[projectName]/procedures/$[procedureName]/steps/$[stepName]"
+ --copyProperty "command_20120717=command"
  --editProperty "command=~s/workdir/working_directory/g"
- --editProperty "Log=~s/$/Bulk update for directory name change - MJW\n/"
+ --editProperty "changeLog=~s/^/Bulk copy-replace to fix workdir name\n/"
 
-(version 0.3c)
+(version 0.4a)

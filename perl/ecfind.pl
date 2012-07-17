@@ -3,6 +3,9 @@
 # various Commander objects (projects, artifacts, and resources).
 #
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+# NB: For proper formatting, use perltidy with options: -ce -l=100
+#     (meaning use cuddled else, and line length of 100)
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
 use strict;
 use utf8;
@@ -15,9 +18,14 @@ use Getopt::Long;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.3d';
+$::version = '0.4a';
 $::debug   = 0;
 $|         = 1;
+
+my $doFull     = 0;
+my $doSelect   = 0;
+my $printCount = 0;
+my $actionFail = '';
 
 # Define some vars used by GetOptions (because of use strict)
 my $server;
@@ -30,50 +38,83 @@ my $maxIds = 10000;
 my $query;
 my @selects;
 my @sorts;
-
-my $actionFail;
-my $actionPrint;
-my @actionSetP;
-my @actionDeleteP;
-my @actionEditP;
-my @actionExec;
-my @actionPerl;
+my @actions;
 
 # Now use the GetOptions API to parse the command line
 my $result = GetOptions(
-    "server=s"         => \$server,
-    "user=s"           => \$user,
-    "pw=s"             => \$pw,
-    "help"             => \$help,
-    "debug+"           => \$::debug,
-    "object=s"         => \$object,
-    "query=s"          => \$query,
-    "select=s"         => \@selects,
-    "sort=s"           => \@sorts,
-    "maxIds=i"         => \$maxIds,
-    "fail-if=s"        => \$actionFail,
-    "print:s"          => \$actionPrint,
-    "setProperty=s"    => \@actionSetP,
-    "editProperty=s"   => \@actionEditP,
-    "deleteProperty=s" => \@actionDeleteP,
-    "exec=s"           => \@actionExec,
-    "perl=s"           => \@actionPerl,
+    "server=s"  => \$server,
+    "user=s"    => \$user,
+    "pw=s"      => \$pw,
+    "help"      => \$help,
+    "debug+"    => \$::debug,
+    "object=s"  => \$object,
+    "query=s"   => \$query,
+    "select=s"  => \@selects,
+    "sort=s"    => \@sorts,
+    "maxIds=i"  => \$maxIds,
+    "fail-if=s" => sub {
+        my $a = shift;
+        my $v = lc(shift);
+        die "$v: invalid argument\n"
+          if ( ( $v ne 'none' )
+            && ( $v ne 'any' ) );
+        $actionFail = $v;
+    },
+    "print:s" => sub {
+        my $a = shift;
+        my $v = lc(shift);
+        $v = "id" unless ($v);
+        die "$v: invalid argument\n"
+          if ( ( $v ne 'id' )
+            && ( $v ne 'count' )
+            && ( $v ne 'name' )
+            && ( $v ne 'xml' ) );
+        push @actions, [ "$a", $v ];
+        $doFull = 1
+          if ( ( $v eq 'name' )
+            || ( $v eq 'xml' ) );
+        $doSelect   = 1 if ( $v eq 'xml' );
+        $printCount = 1 if ( $v eq 'count' );
+    },
+    "expandString=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+    },
+    "setProperty=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+    },
+    "editProperty=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+    },
+    "deleteProperty=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+    },
+    "copyProperty=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+    },
+    "exec=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+        $doFull = 1;
+    },
+    "perl=s" => sub {
+        my $a = shift;
+        my $v = shift;
+        push @actions, [ "$a", $v ];
+        $doFull   = 1;
+        $doSelect = 1;
+    },
 );
-
-if ($actionPrint) {
-    $actionPrint = lc($actionPrint);
-    $help++
-      if ( ( $actionPrint ne 'id' )
-        && ( $actionPrint ne 'xml' )
-        && ( $actionPrint ne 'count' )
-        && ( $actionPrint ne 'name' ) );
-}
-
-if ($actionFail) {
-    $actionFail = lc($actionFail);
-    $help++ if ( ( $actionFail ne 'none' )
-        && ( $actionFail ne 'any' ) );
-}
 
 if ( $help || ( !$object ) || ( !$result ) ) {
     printHelp();
@@ -82,20 +123,16 @@ if ( $help || ( !$object ) || ( !$result ) ) {
 }
 
 # Default action is to print the id
-$actionPrint = 'id'
-  unless ( ($actionPrint)
-    || (@actionExec)
-    || (@actionPerl)
-    || (@actionSetP)
-    || (@actionEditP)
-    || (@actionDeleteP) );
+push @actions, [ 'print', 'id' ] unless ( @actions || $actionFail );
+
+pDebug( "actions array: " . Dumper( \@actions ) );
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
 # Establish our connection to Commander
-my $ec = ElectricCommander->new($server);
+$::ec = ElectricCommander->new($server);
 die "Error: Unable to establish connection to Commander server $server\n"
-  unless ($ec);
+  unless ($::ec);
 
 # Login, if requested
 if ($user) {
@@ -106,12 +143,9 @@ if ($user) {
         eval { ReadMode('normal') };
         print "\n";
     }
-    $ec->login( $user, $pw );
-    $ec->saveSessionFile();
+    $::ec->login( $user, $pw );
+    $::ec->saveSessionFile();
 }
-
-# We do not wish to abort on errors at this point any longer
-#$ec->abortOnError(0);
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 # Process the query argument and build the findObjects arglist
@@ -123,12 +157,7 @@ $a{'maxIds'} = $maxIds;
 
 # Set the number of complete objects we need -- either none, or maxIds, based
 # on the action the user has specified us to take on each selected object
-my $full =
-  (      ( $actionPrint eq 'xml' )
-      || ( $actionPrint eq 'name' )
-      || (@actionExec)
-      || (@actionPerl) );
-$a{'numObjects'} = ($full) ? $maxIds : 0;
+$a{'numObjects'} = ($doFull) ? $maxIds : 0;
 
 # Test for a special query string syntaxes
 if ( $query eq '-' ) {
@@ -137,13 +166,8 @@ if ( $query eq '-' ) {
         chomp;
         $query .= $_;
     }
-}
-elsif ( $query =~ m/^@(.*)$/ ) {
-    my $xp = $ec->getProperty($1);
-    $query =
-        $xp
-      ? $xp->find('/responses/response/property/value')->string_value()
-      : undef;
+} elsif ( $query =~ m/^@(.*)$/ ) {
+    $query = getP( $1, 'true' );
 }
 
 # If a query was provided, process it and add it.  Note that a side effect
@@ -157,7 +181,7 @@ if ($query) {
 
 # Add the select list, but only if we are generating XML output
 # (nothing else uses it, yet)
-if ( $actionPrint eq 'xml' ) {
+if ($doSelect) {
     foreach my $s (@selects) {
         push @{ $a{'select'} }, { "propertyName" => $s };
     }
@@ -169,29 +193,26 @@ foreach my $s (@sorts) {
     if ( $s =~ m/^\-(.*)$/ ) {
         $s    = $1;
         $sdir = 'descending';
-    }
-    elsif ( $s =~ m/^\+(.*)$/ ) {
+    } elsif ( $s =~ m/^\+(.*)$/ ) {
         $s = $1;
     }
     push @{ $a{'sort'} }, { "propertyName" => $s, 'order' => $sdir };
 }
 
-print "a: " . Dumper( \%a ) . "\n" if ($::debug);
+pDebug( "a: " . Dumper( \%a ) );
 
 # Now run the findObjects query itself
-my $xp = $ec->findObjects( $object, \%a );
+my $xp = $::ec->findObjects( $object, \%a );
 
-print "findObjects:\n" . $xp->findnodes_as_string('/') . "\n" if ($::debug);
+pDebug( "findObjects:\n" . $xp->findnodes_as_string('/') );
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 # Do something with the results
 
-my $count = 0;
+my $count            = 0;
+my $xmlHeaderPrinted = 0;
 
-print "<?xml version=\"1.0\"?>\n<objects>\n" if ( $actionPrint eq 'xml' );
-
-my $xquery =
-  $full ? '/responses/response/object' : '/responses/response/objectId';
+my $xquery = $doFull ? '/responses/response/object' : '/responses/response/objectId';
 my $objectNodeSet = $xp->find($xquery);
 foreach my $o ( $objectNodeSet->get_nodelist() ) {
 
@@ -199,24 +220,20 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
 
     # All objects have an object Id -- fetch that appropriately
     my $objectId;
-    if ($full) {
+    if ($doFull) {
         $objectId = $xp->find( './objectId', $o )->string_value();
-    }
-    else {
+    } else {
         $objectId = $o->string_value();
     }
-    print "objectId: $objectId\n" if ($::debug);
-    print "$objectId\n" if ( $actionPrint eq 'id' );
+    pDebug("objectId: $objectId");
 
-    # Print the XML representation of the object, if requested
-    print '    ' . XML::XPath::XMLParser::as_string($o) . "\n"
-      if ( $actionPrint eq 'xml' );
+    my $objectName = '';
+    my %e          = ();
 
     # Iterate over the object type and extract "interesting" properties,
     # storing them in a hash.  Currently these include intrinsics that
     # end in either "Name" or "Id", or contain the string "container".
-    if ($full) {
-        my %e = ();
+    if ($doFull) {
 
         #	my $nodelist = $xp->find('./' . $object . '/*', $o);
         my $nodelist = $xp->find( './*/*', $o );
@@ -227,119 +244,152 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
                 || ( $n =~ m|container| ) )
             {
                 $e{$n} = $node->string_value();
-                print "  $n: $e{$n}\n" if ($::debug);
+                pDebug("  $n: $e{$n}");
             }
         }
         $e{'objectId'} = $objectId;
 
-        my $objectName = $e{ $object . 'Name' };
+        $objectName = $e{ $object . 'Name' };
 
         # Special case -- some objects are unusual in terms of naming
         unless ($objectName) {
             if ( ( $object eq 'procedureStep' ) || ( $object eq 'jobStep' ) ) {
                 $objectName = $e{'stepName'};
-            }
-            elsif ( $object eq 'emailConfig' ) {
+            } elsif ( $object eq 'emailConfig' ) {
                 $objectName = $e{'configName'};
-            }
-            elsif ( $object eq 'emailNotifier' ) {
+            } elsif ( $object eq 'emailNotifier' ) {
                 $objectName = $e{'notifierName'};
-            }
-            elsif ( $object eq 'logEntry' ) {
+            } elsif ( $object eq 'logEntry' ) {
                 $objectName = $e{'logEntryId'};
-            }
-            else {
+            } else {
                 $objectName = '**unknown**';
             }
         }
 
-        # Print the object name if requested
-        print "object name: $objectName\n" if ($::debug);
-        print "$objectName\n" if ( $actionPrint eq 'name' );
+        pDebug("object name: $objectName");
 
         # In preparation for external commands, set environment variables based
         # on the saved "interesting" properties found earlier.
         foreach ( keys %ENV ) { delete $ENV{$_} if ( $_ =~ m/^ECFIND_/ ); }
         foreach ( keys %e ) { $ENV{ 'ECFIND_' . $_ } = $e{$_}; }
-
-        # Handle an arbitrary external command execution
-        foreach my $a (@actionExec) {
-            system($a);
-        }
-
-        foreach my $a (@actionPerl) {
-            eval($a);
-            die "Error: $@\neval($a)\n" if ($@);
-        }
-
     }
 
-    # Special actions (that do not require the full object) here:
+    for my $i ( 0 .. $#actions ) {
 
-    foreach my $a (@actionSetP) {
-        if ( $a =~ m/^\s*(.*?)\s*\=\s*(.*?)\s*$/ ) {
-            die
-"Error: property name must be provided in setProperty action: \"$a\"\n"
-              unless ($1);
-            my $pn = $1;
-            my $v  = $2;
-            $ec->setProperty( $pn, $v, { 'objectId' => $objectId } )
-              unless ($::debug);
-            print "setProperty '$pn' '$v' --objectId '$objectId'\n"
-              if ($::debug);
-        }
-        else {
-            die "Error: syntax error in setProperty action: \"$a\"\n";
-        }
-    }
+        my $a = $actions[$i][0];
+        my $v = $actions[$i][1];
+        pDebug("Action=\"$a\", Value=\"$v\"");
 
-    foreach my $a (@actionEditP) {
-        if ( $a =~ m/^\s*(.*?)\s*\=\~(.*?)$/ ) {
-            die
-"Error: property name must be provided in editProperty action: \"$a\"\n"
-              unless ($1);
-            my $pn = $1;
-            my $e  = $2;
-            $ec->abortOnError(0);
-            my $x = $ec->getProperty(
-                $pn,
-                {
-                    'objectId' => $objectId,
-                    'expand'   => 'true'
+        if ( $a eq 'print' ) {
+            if ( $v eq 'id' ) {
+                print "$objectId\n";
+            } elsif ( $v eq 'name' ) {
+                print "$objectName\n";
+            } elsif ( $v eq 'xml' ) {
+                if ( !$xmlHeaderPrinted ) {
+                    print "<?xml version=\"1.0\"?>\n<objects>\n";
+                    $xmlHeaderPrinted++;
                 }
-            );
-            $ec->abortOnError(1);
-            my $v =
-                $x
-              ? $x->find('/responses/response/property/value')->string_value()
-              : undef;
-            print "getProperty '$pn' --objectId '$objectId' returns: '$v'\n"
-              if ($::debug);
-            eval '$v =~ ' . $e;
-            die "Error processing regular expression: $@\n" if ($@);
-            $ec->setProperty( $pn, $v, { 'objectId' => $objectId } )
-              unless ($::debug);
-            print "setProperty '$pn' '$v' --objectId '$objectId'\n"
-              if ($::debug);
+                print '    ' . XML::XPath::XMLParser::as_string($o) . "\n";
+            }
         }
-        else {
-            die "Error: syntax error in editProperty action: \"$a\"\n";
-        }
-    }
 
-    foreach my $a (@actionDeleteP) {
-        print "deleteProperty '$a' --objectId '$objectId'\n" if ($::debug);
-        $ec->abortOnError(0);
-        $ec->deleteProperty( $a, { 'objectId' => $objectId } )
-          unless ($::debug);
-        $ec->abortOnError(1);
+        elsif ( $a eq 'exec' ) {
+            system($v);
+        }
+
+        elsif ( $a eq 'perl' ) {
+            eval $v;
+            die "Error: $@\neval($v)\n" if ($@);
+        }
+
+        elsif ( $a eq 'expandString' ) {
+            $::ec->abortOnError(0);
+            my $xp = $::ec->expandString( $v, { 'objectId' => $objectId } );
+            $::ec->abortOnError(1);
+            pDebug2( "expandString($v, $objectId): " . $xp->findnodes_as_string("/") );
+            my $va;
+            if ( $xp->exists('/responses/error/code') ) {
+                $va = $xp->findvalue('/responses/error/message')->string_value;
+            } else {
+                $va = $xp->findvalue('/responses/response/value')->string_value;
+            }
+            print "$va\n";
+        }
+
+        elsif ( $a eq 'setProperty' ) {
+            if ( $v =~ m/^\s*(.*?)\s*\=\s*(.*?)\s*$/ ) {
+                die "Error: property name must be provided in setProperty action: \"$v\"\n"
+                  unless ($1);
+                my $pn = $1;
+                my $va = $2;
+                setP( $pn, $va, $objectId ) unless ($::debug);
+                pDebug("setProperty '$pn' '$va' --objectId '$objectId'");
+            } else {
+                die "Error: syntax error in setProperty action: \"$v\"\n";
+            }
+        }
+
+        elsif ( $a eq 'editProperty' ) {
+            if ( $v =~ m/^\s*(.*?)\s*\=\~(.*?)$/ ) {
+                die "Error: property name must be provided in editProperty action: \"$v\"\n"
+                  unless ($1);
+                my $pn = $1;
+                my $e  = $2;
+                $::ec->abortOnError(0);
+                my $va = getP( $pn, 'true', $objectId );
+                $::ec->abortOnError(1);
+                my $vaOrig = $va;
+		$e = '$va =~ ' . $e;
+		pDebug("Eval: " . $e);
+                eval $e;
+                die "Error processing regular expression: $@\n" if ($@);
+
+                if ( $va eq $vaOrig ) {
+                    pDebug("no change in value, setProperty() skipped.");
+                } else {
+                    setP( $pn, $va, $objectId ) unless ($::debug);
+                    pDebug("setProperty '$pn' '$va' --objectId '$objectId'");
+                }
+            } else {
+                die "Error: syntax error in editProperty action: \"$v\"\n";
+            }
+        }
+
+        elsif ( $a eq 'copyProperty' ) {
+            if ( $v =~ m/^\s*(.*?)\s*\=\s*(.*?)\s*$/ ) {
+                die "Error: target property name must be provided in copyProperty action: \"$v\"\n"
+                  unless ($1);
+                "Error: origin property name must be provided in copyProperty action: \"$v\"\n"
+                  unless ($2);
+                my $tpn = $1;
+                my $opn = $2;
+                $::ec->abortOnError(0);
+                my $va = getP( $opn, 'true', $objectId );
+                $::ec->abortOnError(1);
+                if ( defined($va) ) {
+                    setP( $tpn, $va, $objectId ) unless ($::debug);
+                    pDebug("setProperty '$tpn' '$va' --objectId '$objectId'");
+                } else {
+                    pDebug("Origin property does not exist, not copied.");
+                }
+            } else {
+                die "Error: syntax error in copyProperty action: \"$v\"\n";
+            }
+        }
+
+        elsif ( $a eq 'deleteProperty' ) {
+            pDebug("deleteProperty '$v' --objectId '$objectId'");
+            $::ec->abortOnError(0);
+            delP( $v, $objectId ) unless ($::debug);
+            $::ec->abortOnError(1);
+        }
     }
 
 }
 
-print "</objects>\n" if ( $actionPrint eq 'xml' );
-
-print "$count\n" if ( $actionPrint eq 'count' );
+print "</objects>\n" if ($xmlHeaderPrinted);
+print "$count\n"     if ($printCount);
 
 my $status = 0;
 $status = 1 if ( ( $actionFail eq 'none' ) && ( $count == 0 ) );
@@ -347,8 +397,6 @@ $status = 1 if ( ( $actionFail eq 'any' )  && ( $count > 0 ) );
 
 exit($status);
 
-#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
-#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
@@ -362,8 +410,7 @@ sub mkfilter($) {
     $::query = shift;
     $::p     = 0;
     my @f = getExpr();
-    while ( $::p < length($::query) && ( substr( $::query, $::p, 1 ) =~ /\s/ ) )
-    {
+    while ( $::p < length($::query) && ( substr( $::query, $::p, 1 ) =~ /\s/ ) ) {
         $::p++;
     }
     syntaxError("expected end of query") unless ( $::p == length($::query) );
@@ -400,21 +447,17 @@ sub getExpr() {
     my ( $is_boolean, $n ) = @{ $otab{$op} };
 
     if ($is_boolean) {
-        print "Expecting boolean filter, with $n operands.\n"
-          if ( $::debug > 1 );
+        pDebug2("Expecting boolean filter, with $n operands.");
         my @filterList = ();
         do {
             my ( $f, @s ) = getExpr();
             push @filterList, $f;
             foreach (@s) { $selects{$_}++; }
         } while ( ( $t = getNextTokenD() ) eq ',' );
-        print "Obtained boolean filter list: " . Dumper( \@filterList ) . "\n"
-          if ( $::debug > 1 );
+        pDebug2( "Obtained boolean filter list: " . Dumper( \@filterList ) );
         $filter{'filter'} = \@filterList;
-    }
-    else {
-        print "Expecting property filter, with $n operands.\n"
-          if ( $::debug > 1 );
+    } else {
+        pDebug2("Expecting property filter, with $n operands.");
         my $pn = getNextTokenD();
         $filter{'propertyName'} = $pn;
         $selects{$pn}++;
@@ -431,19 +474,14 @@ sub getExpr() {
         $t = getNextTokenD();
     }
     syntaxError("\"$t\": expected close parenthesis") unless ( $t eq ')' );
-    print "Returning: "
-      . Dumper( \%filter )
-      . "Selecting: "
-      . join( ', ', keys(%selects) ) . "\n\n"
-      if ( $::debug > 1 );
+    pDebug2( "Returning: " . Dumper( \%filter ) . "Selecting: " . join( ', ', keys(%selects) ) );
     return ( \%filter, keys(%selects) );
 }
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 sub getNextTokenD() {
     my $t = getNextToken();
-    printf( "p=%3d c=%1s t=%s\n", $::p, substr( $::query, $::p, 1 ), $t )
-      if ( $::debug > 2 );
+    pDebug2( sprintf( "p=%3d c=%1s t=%s", $::p, substr( $::query, $::p, 1 ), $t ) );
     return $t;
 }
 
@@ -456,8 +494,7 @@ sub getNextToken() {
     my $token = '';
 
     # start by removing leading whitespace
-    while ( $::p < length($::query) && ( substr( $::query, $::p, 1 ) =~ /\s/ ) )
-    {
+    while ( $::p < length($::query) && ( substr( $::query, $::p, 1 ) =~ /\s/ ) ) {
         $::p++;
     }
 
@@ -480,23 +517,19 @@ sub getNextToken() {
             {
                 $token .= $c;
             }
-        }
-        elsif ( $c eq '\'' ) {
+        } elsif ( $c eq '\'' ) {
             $::p++;
             while (( $::p < length($::query) )
                 && ( ( $c = substr( $::query, $::p++, 1 ) ) ne '\'' ) )
             {
                 $token .= $c;
             }
-        }
-        elsif ( $c =~ /\s/ ) {
+        } elsif ( $c =~ /\s/ ) {
             $::p++;
             return $token;
-        }
-        elsif ( $c =~ /[\,\(\)]/ ) {
+        } elsif ( $c =~ /[\,\(\)]/ ) {
             return $token;
-        }
-        else {
+        } else {
             $token .= $c;
             $::p++;
         }
@@ -504,6 +537,81 @@ sub getNextToken() {
 
     # if we fall through to here, we ran off the end of the string.
     return undef;
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+# Utility function to get a property.  The objectId is used if the
+# propertyName argument does not start with a forward-slash.  The value
+# "undef" is returned if the property does not exist.  Note that the
+# caller is responsible for calling abortOnError() as appropriate.
+
+sub getP {
+    my $pN     = shift;
+    my $expand = shift;
+    my $objId  = shift;
+
+    my $v;
+    my $xp;
+    my %a;
+    $a{'expand'} = $expand if ( $expand ne '' );
+    $a{'objectId'} = $objId if ( $objId && ( !( $pN =~ m|^/| ) ) );
+    $xp = $::ec->getProperty( $pN, \%a );
+    pDebug2( "getP($pN): " . $xp->findnodes_as_string("/") );
+    if ( $xp->exists('/responses/error/code') ) {
+        $v = undef;
+    } else {
+        $v = $xp->findvalue('/responses/response/property/value')->string_value;
+        pDebug("DEBUG: getP($pN): value=\"$v\"");
+    }
+    return $v;
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+# Utility function to delete a property.  The objectId is used if the
+# propertyName argument does not start with a forward-slash.
+
+sub delP {
+    my $pN    = shift;
+    my $objId = shift;
+
+    my %a;
+    $a{'objectId'} = $objId if ( $objId && ( !( $pN =~ m|^/| ) ) );
+    my $xp = $::ec->deleteProperty( $pN, \%a );
+    pDebug2( "delP($pN): " . $xp->findnodes_as_string("/") );
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+# Utility function to set a property.  The objectId is used if the
+# propertyName argument does not start with a forward-slash.
+
+sub setP {
+    my $pN    = shift;
+    my $v     = shift;
+    my $objId = shift;
+
+    my %a;
+    $a{'value'} = $v;
+    $a{'objectId'} = $objId if ( $objId && ( !( $pN =~ m|^/| ) ) );
+    my $xp = $::ec->setProperty( $pN, \%a );
+    pDebug2( "setP($pN): " . $xp->findnodes_as_string("/") );
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+sub pDebug {
+    my $msg = shift;
+    print "DEBUG: $msg\n" if ($::debug);
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+sub pDebug2 {
+    my $msg = shift;
+    print "DEBUG: $msg\n" if ( $::debug > 1 );
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+sub pDebug3 {
+    my $msg = shift;
+    print "DEBUG: $msg\n" if ( $::debug > 2 );
 }
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
@@ -525,8 +633,10 @@ Usage: ecfind [--server <host>] [--user <username>] [--pw <password>]
   actions:
    [--print id | xml | name | count]
    [--fail-if none | any]
+   [--expandString <string>]...
    [--exec <command-or-script>]...
    [--setProperty <property>=<value>]...
+   [--copyProperty <target>=<original>]...
    [--editProperty <property>=~s/<old>/<new>/[g]]...
    [--deleteProperty <property>]...
   debugging: [--debug]
@@ -634,6 +744,19 @@ The "--fail-if" option can be combined with other actions as required, although
 doing so may make it difficult for the calling script to know the exact reason
 for a failure exit code.
 
+ --expandString <string>...
+
+When it is desirable to have a little more control over the output, in some
+cases the "--expandString" option may be useful.  The provided string is sent
+to the "expandString" API in order to have all the embedded property
+references (e.g. '\$[description]') expanded prior to being displayed.  Note
+that this option is often of limited use, since it attempts to expand nested
+property references, which may not be valid outside of the job execution
+context.  Clever use of embedded javascript references can mitigate this to
+some extent, but in general this option should be used very carefully and only
+when the content of the properties in question is well-understood and is
+defined and valid outside of the job execution context.
+
  --exec <command-or-script>...
 
 If one needs to perform more interesting work with each object that the query
@@ -670,6 +793,14 @@ The "--setProperty" action permits one to set one or more properties on
 each object found to a specific value.  As usual with setProperty operations,
 if the property does not exist, it will be created.  Note that the property
 in question can be a either an intrinsic property or a custom property.
+
+ --copyProperty <target>=<original>...
+
+The "--copyProperty" action permits one to copy the value of an existing
+property to a target property.  If the target property exists, its value
+will be replaced.  Only the value is copied (the description field is
+ignored).  Note that the properties involved can be either intrinsic or
+custom properties.
 
  --deleteProperty <property>...
 
@@ -724,17 +855,21 @@ ecfind --object project --query "contains('projectName','example')"
   --exec "echo /projects/\%ECFIND_projectName%"
 
 Finally, the following example is a query that finds all steps in any project
-that ends in the string "lib", where the command block (an intrinsic property)
-contains the string "workdir".  For each step that matches, print the unique
-object id of the step, and then change the string "workdir" in the command
-block to "working_directory", and append a string (an arbitrary log message)
-to the custom property named "Log" on the step:
+who's name ends in the string "lib" and where the command block (an intrinsic
+property) contains the string "workdir".  For each step found, it will print
+the unique object id of the step followed by the Commander path to the step
+in question, make a backup copy of the command block, change the string
+"workdir" in the command block to "working_directory", and finally write a
+log message to the front of a custom property named "changeLog" on the step:
 
 ecfind --object procedureStep --query
  "and(like('projectName','\%lib'), contains('command','workdir'))"
  --print id
+ --expandString
+  "/projects/\$[projectName]/procedures/\$[procedureName]/steps/\$[stepName]"
+ --copyProperty "command_20120717=command"
  --editProperty "command=~s/workdir/working_directory/g"
- --editProperty "Log=~s/\$/Bulk update for directory name change - MJW\\n/"
+ --editProperty "changeLog=~s/^/Bulk copy-replace to fix workdir name\\n/"
 
 END_OF_TEXT
     print $helptext;
