@@ -18,13 +18,13 @@ use Getopt::Long;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.4a';
+$::version = '0.4b';
 $::debug   = 0;
 $|         = 1;
 
 my $doFull     = 0;
 my $doSelect   = 0;
-my $printCount = 0;
+my $printTotal = 0;
 my $actionFail = '';
 
 # Define some vars used by GetOptions (because of use strict)
@@ -67,6 +67,7 @@ my $result = GetOptions(
         die "$v: invalid argument\n"
           if ( ( $v ne 'id' )
             && ( $v ne 'count' )
+            && ( $v ne 'total' )
             && ( $v ne 'name' )
             && ( $v ne 'xml' ) );
         push @actions, [ "$a", $v ];
@@ -74,7 +75,7 @@ my $result = GetOptions(
           if ( ( $v eq 'name' )
             || ( $v eq 'xml' ) );
         $doSelect   = 1 if ( $v eq 'xml' );
-        $printCount = 1 if ( $v eq 'count' );
+        $printTotal = 1 if ( $v eq 'total' );
     },
     "expandString=s" => sub {
         my $a = shift;
@@ -209,14 +210,14 @@ pDebug( "findObjects:\n" . $xp->findnodes_as_string('/') );
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 # Do something with the results
 
-my $count            = 0;
+my $counter          = 0;
 my $xmlHeaderPrinted = 0;
 
 my $xquery = $doFull ? '/responses/response/object' : '/responses/response/objectId';
 my $objectNodeSet = $xp->find($xquery);
 foreach my $o ( $objectNodeSet->get_nodelist() ) {
 
-    $count++;
+    $counter++;
 
     # All objects have an object Id -- fetch that appropriately
     my $objectId;
@@ -283,6 +284,8 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
         if ( $a eq 'print' ) {
             if ( $v eq 'id' ) {
                 print "$objectId\n";
+            } elsif ( $v eq 'count' ) {
+                print "$counter\n";
             } elsif ( $v eq 'name' ) {
                 print "$objectName\n";
             } elsif ( $v eq 'xml' ) {
@@ -389,11 +392,11 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
 }
 
 print "</objects>\n" if ($xmlHeaderPrinted);
-print "$count\n"     if ($printCount);
+print "$counter\n"   if ($printTotal);
 
 my $status = 0;
-$status = 1 if ( ( $actionFail eq 'none' ) && ( $count == 0 ) );
-$status = 1 if ( ( $actionFail eq 'any' )  && ( $count > 0 ) );
+$status = 1 if ( ( $actionFail eq 'none' ) && ( $counter == 0 ) );
+$status = 1 if ( ( $actionFail eq 'any' )  && ( $counter > 0 ) );
 
 exit($status);
 
@@ -728,8 +731,11 @@ named "setup" in any system with many procedures.
 Another option, particularly useful with PowerShell, is to print the results
 in the form of a complete XML document.  THe "--print xml" accomplishes this.
 
-Finally, sometimes one merely wants to know how many items are found by the
-specified query.  The "--print count" option accomplishes this goal.
+The "--print count" option simply prints an incrementing counter value for
+each item.  This may be useful for determining relative position in a large
+amount of output, but more commonly, one merely wants to know how many items
+are found by the specified query.  The "--print total" option accomplishes
+this goal.
 
  --fail-if none | any
 
