@@ -18,7 +18,7 @@ use Getopt::Long;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.4c';
+$::version = '0.4d';
 $::debug   = 0;
 $|         = 1;
 
@@ -555,7 +555,12 @@ sub getNextToken() {
 sub expandAt {
     my $a = shift;
     return $1 if ( $a =~ m/^@(@.*)$/ );
-    return getP($1) if ( $a =~ m/^@(.*)$/ );
+    return getP($1) if ( $a =~ m/^@(\/.*)$/ );
+    if ( $a =~ m/^@(.*)$/ ) {
+        my $xp = $::ec->expandString($1);
+        pDebug2( "expandString($1): " . $xp->findnodes_as_string("/") );
+        return $xp->findvalue('/responses/response/value')->string_value;
+    }
     return $a;
 }
 
@@ -646,7 +651,7 @@ sub printHelp {
 Usage: ecfind [--server <host>] [--user <username>] [--pw <password>]
   general:
    --object <commander-object-type-name>
-   [--query <query-expression> | @<property-path> | -]
+   [--query <query-expression> | @</property-path-or-expansion> | -]
    [--select <property>[,<property...]]
    [--sort <property>[,<property...]]
    [--maxIds <n>]
