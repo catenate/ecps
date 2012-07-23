@@ -18,7 +18,7 @@ use Getopt::Long;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.4b';
+$::version = '0.4c';
 $::debug   = 0;
 $|         = 1;
 
@@ -167,8 +167,8 @@ if ( $query eq '-' ) {
         chomp;
         $query .= $_;
     }
-} elsif ( $query =~ m/^@(.*)$/ ) {
-    $query = getP( $1, 'true' );
+} else {
+    $query = expandAt($query);
 }
 
 # If a query was provided, process it and add it.  Note that a side effect
@@ -236,7 +236,7 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
     # end in either "Name" or "Id", or contain the string "container".
     if ($doFull) {
 
-        #	my $nodelist = $xp->find('./' . $object . '/*', $o);
+        #        my $nodelist = $xp->find('./' . $object . '/*', $o);
         my $nodelist = $xp->find( './*/*', $o );
         foreach my $node ( $nodelist->get_nodelist() ) {
             my $n = $node->getName();
@@ -298,15 +298,18 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
         }
 
         elsif ( $a eq 'exec' ) {
+            $v = expandAt($v);
             system($v);
         }
 
         elsif ( $a eq 'perl' ) {
+            $v = expandAt($v);
             eval $v;
             die "Error: $@\neval($v)\n" if ($@);
         }
 
         elsif ( $a eq 'expandString' ) {
+            $v = expandAt($v);
             $::ec->abortOnError(0);
             my $xp = $::ec->expandString( $v, { 'objectId' => $objectId } );
             $::ec->abortOnError(1);
@@ -321,6 +324,7 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
         }
 
         elsif ( $a eq 'setProperty' ) {
+            $v = expandAt($v);
             if ( $v =~ m/^\s*(.*?)\s*\=\s*(.*?)\s*$/ ) {
                 die "Error: property name must be provided in setProperty action: \"$v\"\n"
                   unless ($1);
@@ -334,6 +338,7 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
         }
 
         elsif ( $a eq 'editProperty' ) {
+            $v = expandAt($v);
             if ( $v =~ m/^\s*(.*?)\s*\=\~(.*?)$/ ) {
                 die "Error: property name must be provided in editProperty action: \"$v\"\n"
                   unless ($1);
@@ -343,8 +348,8 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
                 my $va = getP( $pn, 'true', $objectId );
                 $::ec->abortOnError(1);
                 my $vaOrig = $va;
-		$e = '$va =~ ' . $e;
-		pDebug("Eval: " . $e);
+                $e = '$va =~ ' . $e;
+                pDebug( "Eval: " . $e );
                 eval $e;
                 die "Error processing regular expression: $@\n" if ($@);
 
@@ -360,6 +365,7 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
         }
 
         elsif ( $a eq 'copyProperty' ) {
+            $v = expandAt($v);
             if ( $v =~ m/^\s*(.*?)\s*\=\s*(.*?)\s*$/ ) {
                 die "Error: target property name must be provided in copyProperty action: \"$v\"\n"
                   unless ($1);
@@ -382,6 +388,7 @@ foreach my $o ( $objectNodeSet->get_nodelist() ) {
         }
 
         elsif ( $a eq 'deleteProperty' ) {
+            $v = expandAt($v);
             pDebug("deleteProperty '$v' --objectId '$objectId'");
             $::ec->abortOnError(0);
             delP( $v, $objectId ) unless ($::debug);
@@ -540,6 +547,16 @@ sub getNextToken() {
 
     # if we fall through to here, we ran off the end of the string.
     return undef;
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+# Utility to handle @property references in arguments
+
+sub expandAt {
+    my $a = shift;
+    return $1 if ( $a =~ m/^@(@.*)$/ );
+    return getP($1) if ( $a =~ m/^@(.*)$/ );
+    return $a;
 }
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
