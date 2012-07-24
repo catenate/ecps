@@ -15,10 +15,11 @@ use Data::Dumper;
 use File::Path;
 use Term::ReadKey;
 use Getopt::Long;
+use Date::Manip;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.4d';
+$::version = '0.4e';
 $::debug   = 0;
 $|         = 1;
 
@@ -32,7 +33,7 @@ my $server;
 my $user;
 my $pw;
 my $help;
-
+my $tz;
 my $object;
 my $maxIds = 10000;
 my $query;
@@ -45,6 +46,7 @@ my $result = GetOptions(
     "server=s"  => \$server,
     "user=s"    => \$user,
     "pw=s"      => \$pw,
+    "tz=s"      => \$tz,
     "help"      => \$help,
     "debug+"    => \$::debug,
     "object=s"  => \$object,
@@ -122,6 +124,8 @@ if ( $help || ( !$object ) || ( !$result ) ) {
     print "(version $::version)\n";
     die "\n";
 }
+
+Date_Init( "TodayIsMidnight=1", $tz ? "TZ=$tz" : undef );
 
 # Default action is to print the id
 push @actions, [ 'print', 'id' ] unless ( @actions || $actionFail );
@@ -447,9 +451,33 @@ sub getExpr() {
         'isNotNull'      => [ 0, 0 ],     # property, no operands
         'isNull'         => [ 0, 0 ],
     );
+    my %stab = (
+        'equal'          => 'equals',
+        'eq'             => 'equals',
+        'greaterorequal' => 'greaterOrEqual',
+        'ge'             => 'greaterOrEqual',
+        'greaterthan'    => 'greaterThan',
+        'greater'        => 'greaterThan',
+        'gt'             => 'greaterThan',
+        'lessorequal'    => 'lessThanOrEqual',
+        'le'             => 'lessThanOrEqual',
+        'lessthan'       => 'lessThan',
+        'lt'             => 'lessThan',
+        'less'           => 'lessThan',
+        'notequal'       => 'notEqual',
+        'ne'             => 'notEqual',
+        'notlike'        => 'notLike',
+        'unlike'         => 'notLike',
+        'isnotnull'      => 'isNotNull',
+        'notnull'        => 'isNotNull',
+        'isnull'         => 'isNull',
+        'null'           => 'isNull',
+    );
+
     my %filter  = ();
     my %selects = ();
     my $op      = getNextTokenD();
+    $op = $stab{ lc($op) } if defined( $stab{ lc($op) } );
     syntaxError("\"$op\": unrecognized operator") unless defined( $otab{$op} );
     my $t = getNextTokenD();
     syntaxError("\"$t\": expected open parenthesis") unless ( $t eq '(' );
@@ -474,18 +502,33 @@ sub getExpr() {
         if ( $n > 0 ) {
             $t = getNextTokenD();
             syntaxError("\"$t\": expected comma") unless ( $t eq ',' );
-            $filter{'operand1'} = getNextTokenD();
+            $filter{'operand1'} = getNextMacroTokenD();
         }
         if ( $n > 1 ) {
             $t = getNextTokenD();
             syntaxError("\"$t\": expected comma") unless ( $t eq ',' );
-            $filter{'operand2'} = getNextTokenD();
+            $filter{'operand2'} = getNextMacroTokenD();
         }
         $t = getNextTokenD();
     }
     syntaxError("\"$t\": expected close parenthesis") unless ( $t eq ')' );
     pDebug2( "Returning: " . Dumper( \%filter ) . "Selecting: " . join( ', ', keys(%selects) ) );
     return ( \%filter, keys(%selects) );
+}
+
+#---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
+sub getNextMacroTokenD() {
+    my $t = getNextTokenD();
+    if ( $t =~ m/^#DATE:\s*(.*)$/ ) {
+        my $value = $1;
+        syntaxError("\"$t\": missing argument for macro \"DATE\"") unless ($value);
+        my $d = Date::Manip::ParseDate($value);
+        my $d = Date_ConvTZ( $d, "", "UTC" );
+        $value = Date::Manip::UnixDate( $d, '%Y-%m-%dT%H:%M:%S.000Z' );
+        pDebug("Macro translation: \"$t\" -> \"$value\"");
+        $t = $value;
+    }
+    return $t;
 }
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
