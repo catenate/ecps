@@ -1,7 +1,8 @@
 Usage: ecfind [--server <host>] [--user <username>] [--pw <password>]
   general:
    --object <commander-object-type-name>
-   [--query <query-expression> | @<property-path> | -]
+   [--query <query-expression> | @</property-path-or-expansion> | -]
+   [--tz <timezone>]
    [--select <property>[,<property...]]
    [--sort <property>[,<property...]]
    [--maxIds <n>]
@@ -15,9 +16,10 @@ Usage: ecfind [--server <host>] [--user <username>] [--pw <password>]
    [--editProperty <property>=~s/<old>/<new>/[g]]...
    [--deleteProperty <property>]...
   debugging: [--debug]
-  help: [--help]
+  help: [--help [usage | query | about]]
 
 Query Syntax:
+
   A query takes the form of a function call.  For example, the following query
 will search for the project named "Default":
 
@@ -38,41 +40,79 @@ in a query.
 
 Valid functions include:
 
-    logical
- and(<function()>,<function()>,...)
- or(<function()>,<function()>,...)
- not(<function()>)
+    - logical operators -
+            and ( <function()>, <function()>, ... )
+             or ( <function()>, <function()>, ... )
+            not ( <function()> )
 
-    comparison
- equals("propertyName","value")
- notEqual("propertyName","value")
- greaterThan("propertyName","value")
- greaterOrEqual("propertyName","value")
- lessThan("propertyName","value")
- lessOrEqual("propertyName","value")
+    - comparison operators -
+         equals ( "propertyName", "value" )
+       notEqual ( "propertyName", "value" )
+    greaterThan ( "propertyName", "value" )
+ greaterOrEqual ( "propertyName", "value" )
+       lessThan ( "propertyName", "value" )
+    lessOrEqual ( "propertyName", "value" )
 
-    patterns
- like("propertyName","value")
- contains("propertyName","value")
- notLike("propertyName","value")
+    - pattern matching operators -
+           like ( "propertyName", "value" )
+       contains ( "propertyName", "value" )
+        notLike ( "propertyName", "value" )
 
-    existence
- isNotNull("propertyName")
- isNull("propertyName")
+    - existence testing operators -
+      isNotNull ( "propertyName")
+         isNull ( "propertyName")
 
-    ranges
- between("propertyName","lowerValue","upperValue")
+    - range testing operators -
+        between ( "propertyName", "lowerValue", "upperValue" )
   
+Many of the operators have synonyms (for example, one can use "ge" instead
+of "greaterOrEqual" to save typing).  However, use of the full operator
+name is encouraged.
+
+In order to facilitate queries involving dates, a special macro, "#date:",
+can be used in place of the "value" in a query.  For example:
+
+  "#date: 12 Dec 2001 8:45 AM EST"
+
+One can also specify relative or sloppy dates:
+
+  "#date: last week"
+  "#date: last Monday"
+  "#date: today"
+
+Note: when specifying relative dates, especially "today", be aware of the
+pitfalls caused by the fact that Commander performs the comparison based
+on a specific full date/time.  The macro "#date: today" actually translates
+to midnight at the beginning of the current day (which matches best to
+the common intent).  In contrast, the macro "#date: yesterday" actually
+translates to exactly 24 hours ago.  In general, try to use more complete
+date/time specifications.
+
+Note: date conversions require knowlege of the current timezone.  Due to
+limitations in the version of perl, the utility may be unable to determine
+your timezone.  If you get a message indicating this, you may need to
+specify your timezone on the command line using the "--tz <timezone>"
+option.  Please specify the timezone in the format "CST6CDT" or "EST".
+
 More detail on each function can be found in the ElectricCommander online
 help, under the help topic for the findObjects API.
 
-Because query strings can become quite unwieldy to pass in via the command
-line (due to length as well as the need to protect strings and quotes from
-the shell being used), alternate means to specify the query are provided.
-If the query string is simple the dash "-" character, the query is read from
-STDIN.  If the query string starts with the special character "@", the
-remainder of the query string is taken to be a property path, and the query
-will be read from the specified property.
+
+Property References and Expansion:
+
+Because query strings and actions can become quite unwieldy to pass in via
+the command line (due to length as well as the need to protect strings and
+quotes from the shell being used), alternate means to specify the query and
+actions are provided.
+
+If the query string is simple the dash character, the query is read from STDIN.
+
+If the query string starts with the special character "@", the remainder of
+the query string is specially processed.  If the remainder starts with the
+forward slash ("/"), then it is taken to be a full property path, and the query
+will be read from the specified property.  Otherwise, the remainder is passed
+through "expandString" to expand all embedded property references (such as
+$[/myUser/saved_property]).
 
 Note that in all cases, a query can cross multiple lines, which can be helpful
 in order to make complicated queries more legible.  (The ability to have the
@@ -81,7 +121,18 @@ limited by the particular shell being used, which in practice means that one
 would typically use this syntax when reading the query in from STDIN or from
 a property.)
 
+Certain actions also honor the "@" syntax, allowing one to store the details
+of an editProperty action (for example) in a property.  The actions that permit
+this form of property expansion include:
+
+  --setProperty
+  --copyProperty
+  --editProperty
+  --expandString
+  --exec
+
 Actions:
+
   Of course, it's not useful to search for things unless one wants to do
 something with the results.
 
@@ -249,4 +300,5 @@ ecfind --object procedureStep --query
  --editProperty "command=~s/workdir/working_directory/g"
  --editProperty "changeLog=~s/^/Bulk copy-replace to fix workdir name\n/"
 
-(version 0.4b)
+
+ecfind version 0.4f
