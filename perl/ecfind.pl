@@ -19,7 +19,7 @@ use Date::Manip;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.4f';
+$::version = '0.4g';
 $::debug   = 0;
 $|         = 1;
 
@@ -127,12 +127,6 @@ if ( defined($help) ) {
 if ( ( !$object ) || ( !$result ) ) {
     printHelp('usage');
     die "\n";
-}
-
-if ($tz) {
-    Date_Init( "TodayIsMidnight=1", "TZ=$tz" );
-} else {
-    Date_Init("TodayIsMidnight=1");
 }
 
 # Default action is to print the id
@@ -530,6 +524,17 @@ sub getNextMacroTokenD() {
     if ( $t =~ m/^#[Dd][Aa][Tt][Ee]:\s*(.*)$/ ) {
         my $value = $1;
         syntaxError("\"$t\": missing argument for macro \"DATE\"") unless ($value);
+        if ( !$::DateManipIsInitialized ) {
+
+            # HACK - this code is necessary for the old version of Date::Manip
+            # provided with Commander 4.1.x and earlier.
+            if ($tz) {
+                Date_Init( "TodayIsMidnight=1", "TZ=$tz" );
+            } else {
+                Date_Init("TodayIsMidnight=1");
+            }
+            $::DateManipIsInitialized = 1;
+        }
         my $d = Date::Manip::ParseDate($value);
         my $d = Date_ConvTZ( $d, "", "UTC" );
         $value = Date::Manip::UnixDate( $d, '%Y-%m-%dT%H:%M:%S.000Z' );
