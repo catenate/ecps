@@ -15,11 +15,10 @@ use Data::Dumper;
 use File::Path;
 use Term::ReadKey;
 use Getopt::Long;
-use Date::Manip;
 
 #---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---=---#
 
-$::version = '0.4g';
+$::version = '0.4h';
 $::debug   = 0;
 $|         = 1;
 
@@ -525,18 +524,19 @@ sub getNextMacroTokenD() {
         my $value = $1;
         syntaxError("\"$t\": missing argument for macro \"DATE\"") unless ($value);
         if ( !$::DateManipIsInitialized ) {
+            require Date::Manip;
 
             # HACK - this code is necessary for the old version of Date::Manip
             # provided with Commander 4.1.x and earlier.
             if ($tz) {
-                Date_Init( "TodayIsMidnight=1", "TZ=$tz" );
+                Date::Manip::Date_Init( "TodayIsMidnight=1", "TZ=$tz" );
             } else {
-                Date_Init("TodayIsMidnight=1");
+                Date::Manip::Date_Init("TodayIsMidnight=1");
             }
             $::DateManipIsInitialized = 1;
         }
         my $d = Date::Manip::ParseDate($value);
-        my $d = Date_ConvTZ( $d, "", "UTC" );
+        my $d = Date::Manip::Date_ConvTZ( $d, "", "UTC" );
         $value = Date::Manip::UnixDate( $d, '%Y-%m-%dT%H:%M:%S.000Z' );
         pDebug("Macro translation: \"$t\" -> \"$value\"");
         $t = $value;
